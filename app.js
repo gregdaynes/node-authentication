@@ -14,7 +14,7 @@ var ejs          = require('ejs');
 // =============================================================================
 var app    = module.exports = express();
 var config = require('./config');
-  
+
 
 // !CONFIG
 // =============================================================================
@@ -30,7 +30,13 @@ app.use(bodyParser.urlencoded({extended: true }));
 // app.set('views', __dirname + '/views'); // not needed if using /views
 app.set('view engine', 'ejs'); // set ejs for templating
 
-require('./config/passport')(passport); // passport 
+require('./config/auth.serialize.js')(passport);
+require('./config/auth.local.js')(passport);
+require('./config/auth.facebook.js')(passport);
+require('./config/auth.twitter.js')(passport);
+require('./config/auth.google.js')(passport);
+
+// require('./config/passport')(passport); // passport
 
 // passport middleware
 app.use(session({
@@ -47,7 +53,3 @@ app.use(flash()); // use connect-flash for flash messages stored in session
 // !ROUTES
 // =============================================================================
 require('./app/routes.js')(app, passport); // load routes and pass in app and configured passport
-
-
-
-
