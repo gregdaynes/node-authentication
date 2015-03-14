@@ -3,6 +3,7 @@
 var LocalStrategy    = require('passport-local').Strategy;
 var FacebookStrategy = require('passport-facebook').Strategy;
 var TwitterStrategy  = require('passport-twitter').Strategy;
+var GoogleStrategy   = require('passport-google-oauth').OAuth2Strategy;
 var config           = require('./index.js');
 var User             = require('../app/models/user');
 
@@ -196,9 +197,10 @@ module.exports = function(passport) {
     function(token, tokenSecret, profile, done) {
 
         // async
+        // findOne will wait until we have all the data from twitter
         process.nextTick(function() {
 
-            // findOne will wait until we have all the data from twitter
+            // try to find the user based on their twitter id
             User.findOne({ 'twitter.id': profile.id }, function(err, user) {
 
                 // stop everything for errors
@@ -217,12 +219,71 @@ module.exports = function(passport) {
                     var newUser = new User();
 
                     // set all the data that we will need
-                    newUser.twitter.id = profile.id
+                    newUser.twitter.id = profile.id;
                     newUser.twitter.token = token;
                     newUser.twitter.username = profile.username;
                     newUser.twitter.displayName = profile.displayName;
 
                     // save our user into the database
+                    newUser.save(function(err) {
+                        if (err) {
+                            throw err;
+                        }
+
+                        return done(null, newUser);
+                    });
+                }
+            });
+        });
+    }));
+
+
+
+
+
+    // Google
+    // ------------------------
+    passport.use(new GoogleStrategy({
+
+        // pull in app id and secret from config
+        clientID: config.googleAuth.clientId,
+        clientSecret: config.googleAuth.clientSecret,
+        callbackURL: config.googleAuth.callbackURL
+    },
+
+    function(token, refreshToken, profile, done) {
+
+        // async
+        // findOne will wait until we have all the data from Google
+        process.nextTick(function() {
+
+            // try to find the user based on their google Id
+            User.findOne({ 'google.id': profile.id }, function(err, user) {
+
+                // stop everything for errors
+                if (err) {
+                    return done(err);
+                }
+
+                if (user) {
+
+                    // if user found, log them in
+                    return done(null, user);
+                }
+
+                // no user, create one
+                else {
+
+                    var newUser = new User();
+
+                    // set all the relevant information we will need
+                    newUser.google.id = profile.id;
+                    newUser.google.token = token;
+                    newUser.google.name = profile.displayName;
+                    newUser.google.email = profile.emails[0].value; // first email
+
+
+                    // save new user to db
                     newUser.save(function(err) {
                         if (err) {
                             throw err;
