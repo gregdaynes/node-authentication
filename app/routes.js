@@ -44,11 +44,38 @@ module.exports = function(app, passport) {
         req.logout();
         res.redirect('/');
     });
+
+    // Facebook Routes
+    // ------------------------
+    // route for facebook authentication and login
+    app.get('/auth/facebook', passport.authenticate('facebook', {
+        scope: 'email'
+    }));
+
+    // handle the callback after facebook has authenticated the user
+    app.get('/auth/facebook/callback',
+        passport.authenticate('facebook', {
+            successRedirect: '/profile',
+            failureRedirect: '/'
+        }));
+
+    // Twitter Routes
+    // ------------------------
+    // route for twitter authentication and login
+    app.get('/auth/twitter', passport.authenticate('twitter'));
+
+    // handle the callback after twitter has authenticated used
+    app.get('/auth/twitter/callback',
+        passport.authenticate('twitter', {
+            successRedirect: '/profile',
+            failureRedirect: '/'
+        }));
+
 };
 
 // check login middleware
 function isLoggedIn(req, res, next) {
-    
+
     if (req.isAuthenticated()) {
         return next();
     }

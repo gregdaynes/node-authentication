@@ -1,7 +1,10 @@
 // !IMPORTS
 // =============================================================================
-var LocalStrategy = require('passport-local').Strategy;
-var User          = require('../app/models/user');
+var LocalStrategy    = require('passport-local').Strategy;
+var FacebookStrategy = require('passport-facebook').Strategy;
+var TwitterStrategy  = require('passport-twitter').Strategy;
+var config           = require('./index.js');
+var User             = require('../app/models/user');
 
 
 // expose this function to our app using exports
@@ -117,6 +120,118 @@ module.exports = function(passport) {
 
             // all good, return success
             return done(null, user);
+        });
+    }));
+
+
+
+
+
+    // Facebook
+    // ------------------------
+    passport.use(new FacebookStrategy({
+
+        // pull in app id and secret from config
+        clientID: config.facebookAuth.clientID,
+        clientSecret: config.facebookAuth.clientSecret,
+        callbackURL: config.facebookAuth.callbackURL
+    },
+
+    // facebook will send back the token and profile
+    function(token, refreshToken, profile, done) {
+
+        // async
+        process.nextTick(function() {
+
+            // find the user in the database based on their facebook id
+            User.findOne({ 'facebook.id': profile.id }, function(err, user) {
+                // stop everything and return error
+                if (err) {
+                    return done(err);
+                }
+
+                // if user found, log them in
+                if (user) {
+                    return done(null, user); // user found, use user
+                }
+
+                // no user with facebook id - create one
+                else {
+
+                    var newUser = new User();
+
+                    // set all of the facebook information in our user model
+                    newUser.facebook.id = profile.id; // sets the users facebook id
+                    newUser.facebook.token = token; // we will save the token facebook provides for the user
+                    newUser.facebook.name = profile.name.givenName + ' ' + profile.name.familyName; // look at the passport user profile to see how names are returned
+                    newUser.facebook.email = profile.emails[0].value; // facebook can return multiple emails, we'll use the first
+
+                    // save new user to db
+                    newUser.save(function(err) {
+                        if (err) {
+                            throw err;
+                        }
+
+                        // if successful, return new user
+                        return done(null, newUser);
+                    });
+                }
+            });
+        });
+    }));
+
+
+
+
+
+    // Twitter
+    // ------------------------
+    passport.use(new TwitterStrategy({
+
+        // pull in app id and secret from config
+        consumerKey: config.twitterAuth.consumerKey,
+        consumerSecret: config.twitterAuth.consumerSecret,
+        callbackURL: config.twitterAuth.callbaclURL
+    },
+    function(token, tokenSecret, profile, done) {
+
+        // async
+        process.nextTick(function() {
+
+            // findOne will wait until we have all the data from twitter
+            User.findOne({ 'twitter.id': profile.id }, function(err, user) {
+
+                // stop everything for errors
+                if (err) {
+                    return done(err);
+                }
+
+                // if user found, log them in
+                if (user) {
+                    return done(null, user); // use user
+                }
+
+                // no user, create a new one
+                else {
+
+                    var newUser = new User();
+
+                    // set all the data that we will need
+                    newUser.twitter.id = profile.id
+                    newUser.twitter.token = token;
+                    newUser.twitter.username = profile.username;
+                    newUser.twitter.displayName = profile.displayName;
+
+                    // save our user into the database
+                    newUser.save(function(err) {
+                        if (err) {
+                            throw err;
+                        }
+
+                        return done(null, newUser);
+                    });
+                }
+            });
         });
     }));
 };
